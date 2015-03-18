@@ -8,7 +8,7 @@ The original data is about human activity performed by a group of 30 volunteers.
 
 There are 17 distinct features each with several quantitive measures in the original dataset. We will only take the mean and standard deviation of each feature, then take the average value of the selected measurements for each activity and each subject.
 
-The script "run_analysis.R" is used to process the big dataset and generate the final tidy dataset.
+The script "run_analysis.R" is used to process the big dataset and generate the final tidy dataset. It reads raw data files for training dataset and test dataset separately. Then it merges the extracted measurements with activiy and subject information from other files. Finally it combines the training set and test set to form a big set and aggregate the big dataset to get the final tidy dataset.
 
 One can find more about the tidy dataset from its code book.
 
