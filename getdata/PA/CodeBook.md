@@ -32,16 +32,21 @@ The variables of the dataset are listed sequentially as follows:
 
 1. Activity
 
-- WALKING
-- WALKING_UPSTAIRS
-- WALKING_DOWNSTAIRS
-- SITTING
-- STANDING
-- LAYING
+    WALKING
+
+    WALKING_UPSTAIRS
+    
+    WALKING_DOWNSTAIRS
+    
+    SITTING
+    
+    STANDING
+    
+    LAYING
 
 2. Subject
 
-- Denoted by integer number from 1 to 30
+    Denoted by integer number from 1 to 30
 
 3. tBodyAcc_mean_X_Average
 
