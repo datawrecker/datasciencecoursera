@@ -55,7 +55,7 @@ Storm$CROPDMGMUL[Storm$CROPDMGEXP == "m" | Storm$CROPDMGEXP == "M"] = 1000000
 Storm$CROPDMGMUL[Storm$CROPDMGEXP == "b" | Storm$CROPDMGEXP == "B"] = 1000000000
 ```
 
-We also need to clean up the EVTYPE column. According to NOAA Storm database codebook mentioned before, there are only 48 primary weather events. But in the database, there are as many as `r length(unique(Storm$EVTYPE))` different events recorded.
+We also need to clean up the EVTYPE column. According to the NOAA Storm database codebook mentioned before, there are only 48 primary weather events. But in the database, there are as many as `r length(unique(Storm$EVTYPE))` different events recorded.
 
 To clean up such a big mess is too much work. The truth is that we don't have to clean all of them. Let's take a look at why there are so many different events recorded by counting the number of different events first.
 ```{r echo=T}
