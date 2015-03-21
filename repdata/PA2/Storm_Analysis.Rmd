@@ -1,0 +1,152 @@
+---
+title: "Analysis of the Impact of Severe Weather Events on Population Health and Economy"
+output: html_document
+---
+
+## Synopsis
+The U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database tracks characteristics of major storms and weather events in the United States. The events in the database start in the year 1950 and end in November 2011.
+
+In this report, we are going to explore this database to find out the weather phenomena which have the most severe impact on population health and economy.
+
+Particularly we are going to address the following two questions:
+
+1. Across the United States, which types of events are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+One can download the database from [Storm Data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2). And also [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) and [FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf).
+
+## Data Processing
+Assuming that the data file is in the current working directory, let's just load the dataset:
+```{r echo=T, cache=T}
+Storm <- read.csv("repdata_data_StormData.csv.bz2")
+```
+
+The population health related columns are FATALITIES and INJURIES, which could be used directly.
+```{r echo=T}
+class(Storm$FATALITIES)
+class(Storm$INJURIES)
+```
+
+The economy related columns are PROPDMG, PROPDMGEXP, CROPDMG and CROPDMGEXP. We need to do some preprocessing to make them useful for our analysis.
+```{r echo=T}
+class(Storm$PROPDMG)
+class(Storm$PROPDMGEXP)
+class(Storm$CROPDMG)
+class(Storm$CROPDMGEXP)
+```
+
+The columns PROPDMGEXP and CROPDMGEXP are scales for PROPDMG and CROPDMG. The valid options for units are "K", "M" and "B", which mean kilo, million and billion, respectively. But there are more different values in the raw data, so we need to clean them up.
+```{r echo=T}
+unique(Storm$PROPDMGEXP)
+unique(Storm$CROPDMGEXP)
+```
+
+Different person has differnt way to process the invalid options. Here we simply treat all of the invalid options as value 1. Two reasons for this simple strategy. On the one hand, we can't just ignore these records and we need to make them count. On the other hand, if a nubmer was any significant, it should be recorded seriously and correctly in the first place, since it's not right here, we can't let it count too much. Sophisticated strategy could exist if we get more knowledge of these invalid options.
+```{r echo=T}
+Storm$PROPDMGMUL = 1
+Storm$PROPDMGMUL[Storm$PROPDMGEXP == "k" | Storm$PROPDMGEXP == "K"] = 1000
+Storm$PROPDMGMUL[Storm$PROPDMGEXP == "m" | Storm$PROPDMGEXP == "M"] = 1000000
+Storm$PROPDMGMUL[Storm$PROPDMGEXP == "b" | Storm$PROPDMGEXP == "B"] = 1000000000
+
+Storm$CROPDMGMUL = 1
+Storm$CROPDMGMUL[Storm$CROPDMGEXP == "k" | Storm$CROPDMGEXP == "K"] = 1000
+Storm$CROPDMGMUL[Storm$CROPDMGEXP == "m" | Storm$CROPDMGEXP == "M"] = 1000000
+Storm$CROPDMGMUL[Storm$CROPDMGEXP == "b" | Storm$CROPDMGEXP == "B"] = 1000000000
+```
+
+We also need to clean up the EVTYPE column. According to NOAA Storm database codebook mentioned before, there are only 48 primary weather events. But in the database, there are as many as `r length(unique(Storm$EVTYPE))` different events recorded.
+
+To clean up such a big mess is too much work. The truth is that we don't have to clean all of them. Let's take a look at why there are so many different events recorded by counting the number of different events first.
+```{r echo=T}
+Events <- data.frame(Storm$EVTYPE, 1)
+names(Events) <- c("Evtype", "Cnt")
+EvtypeCnt <- with(Events, aggregate(Cnt, by=list(Evtype), sum))
+names(EvtypeCnt) <- c("Type", "Cnt")
+EventByCnt <- EvtypeCnt[order(-EvtypeCnt$Cnt), ]
+EqualOne <- sum(EventByCnt$Cnt == 1)
+LessEqualTen <- sum(EventByCnt$Cnt <= 10)
+```
+
+`r EqualOne` events occur only once and `r LessEqualTen` events occur less than or equal to 10 times. We can see that a great majority of event types in the database occurred so rare, most likely they are just typo or plural. Because they are so few, we can safely neglect them with bare influence on our analysis.
+
+So here we only care about events which occurs not less than 100 times. Let's see what they look like:
+```{r echo=T}
+GreatEqual100 <- sum(EventByCnt$Cnt >= 100)
+EventByCnt[EventByCnt$Cnt >= 100, ]
+```
+
+Altogether `r GreatEqual100` events need our attention here. Turns out just few of them need to be reclarified. The rationality is that the high frequency of the occurring of a event name justifies itself. If a weather event has more than one high-frequent names, not because some of them are wrong, actually they are all correct and well-accepted names. But for the purpose of our analysis, we need to normalize the name for events. Therefore we only do the following cleanup:
+```{r echo=T}
+Storm$EVTYPE[Storm$EVTYPE == "TSTM WIND"] = "THUNDERSTORM WIND"
+Storm$EVTYPE[Storm$EVTYPE == "THUNDERSTORM WINDS"] = "THUNDERSTORM WIND"
+Storm$EVTYPE[Storm$EVTYPE == "MARINE TSTM WIND"] = "MARINE THUNDERSTORM WIND"
+Storm$EVTYPE[Storm$EVTYPE == "URBAN/SML STREAM FLD"] = "FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "WINTER WEATHER/MIX"] = "WINTER WEATHER"
+Storm$EVTYPE[Storm$EVTYPE == "TSTM WIND/HAIL"] = "THUNDERSTORM WIND"
+Storm$EVTYPE[Storm$EVTYPE == "FLASH FLOODING"] = "FLASH FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "COASTAL FLOOD"] = "FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "FLOOD/FLASH FLOOD"] = "FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "URBAN FLOOD"] = "FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "RIVER FLOOD"] = "FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "COASTAL FLOODING"] = "FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "FLOODING"] = "FLOOD"
+Storm$EVTYPE[Storm$EVTYPE == "HURRICANE"] = "HURRICANE/TYPHOON"
+Storm$EVTYPE[Storm$EVTYPE == "WILD/FOREST FIRE"] = "WILDFIRE"
+```
+
+Notice that here we don't combine events "FLOOD" and "FLASH FLOOD" because they are classified as different primary event types in the codebook. So are "HEAT" and "EXCESSIVE HEAT".
+
+Now that the data is clean, we just add the data up according to different weather event types, then find out the most significant ones which have caused most human casualties and property damages.
+```{r echo=T, cache=T}
+attach(Storm)
+
+LifeSumByEVTYPE <- aggregate(data.frame(FATALITIES, INJURIES), by=list(EVTYPE), sum)
+names(LifeSumByEVTYPE) <- c("EVTYPE", "Fatalities", "Injuries")
+Top10LifeImpact <-
+    LifeSumByEVTYPE[order(-(LifeSumByEVTYPE$Fatalities + LifeSumByEVTYPE$Injuries))[1:10], ]
+
+
+PropertySumByEVTYPE <- aggregate(data.frame(PROPDMG * PROPDMGMUL, CROPDMG * CROPDMGMUL),
+                            by=list(EVTYPE), sum)
+names(PropertySumByEVTYPE) <- c("EVTYPE", "Property", "Crop")
+Top10PropertyImpact <-
+    PropertySumByEVTYPE[order(-(PropertySumByEVTYPE$Property + PropertySumByEVTYPE$Crop))[1:10], ]
+
+detach(Storm)
+```
+
+## Results
+
+### Events which are most harmful to population health
+The top 10 most harmful weather events to population health are as follows:
+```{r echo=F}
+Top10LifeImpact
+```
+
+```{r echo=T}
+library(reshape2)
+LifeFinal <- melt(Top10LifeImpact, id.vars="EVTYPE", variable.name="Type", value.name="Value")
+
+library(ggplot2)
+ggplot(data=LifeFinal, aes(x=EVTYPE, y=Value, fill=Type)) +
+                    geom_bar(stat="identity") +
+                    xlab("Weather Events") + ylab("Total Casualties") +
+                    ggtitle("Human Casualty") + coord_flip()
+```
+
+### Events with the greatest economic consequences
+The top 10 weather events with the greatest economic consequences are as follows:
+```{r echo=F}
+Top10PropertyImpact
+```
+
+```{r echo=T}
+PropertyFinal <- melt(Top10PropertyImpact, id.vars="EVTYPE", variable.name="Type", value.name="Value")
+
+ggplot(data=PropertyFinal, aes(x=EVTYPE, y=Value/1e6, fill=Type)) +
+                    geom_bar(stat="identity") +
+                    xlab("Weather Events") + ylab("Total Damages (millions)") +
+                    ggtitle("Property Loss") + coord_flip()
+
+```
